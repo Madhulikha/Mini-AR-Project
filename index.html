@@ -3,49 +3,171 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>AR Object Demo</title>
+  <meta name="theme-color" content="#0b1020" />
+  <title>Mini AR Studio | WebAR Demo</title>
+
+  <!-- A-Frame renders the 3D scene; AR.js provides marker tracking. -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
   <style>
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; }
-    .panel {
-      position: fixed; z-index: 10; top: 12px; left: 12px; right: 12px;
-      padding: 12px 14px; border-radius: 14px; color: white;
-      background: rgba(15, 23, 42, .82); backdrop-filter: blur(8px);
-      font-size: 14px; line-height: 1.4;
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #050816; }
+    .topbar {
+      position: fixed; z-index: 20; top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 13px 15px; border: 1px solid rgba(255,255,255,.13); border-radius: 18px;
+      background: rgba(9, 15, 34, .82); backdrop-filter: blur(14px); color: #fff;
+      box-shadow: 0 12px 35px rgba(0,0,0,.22);
     }
-    .panel strong { display: block; font-size: 16px; margin-bottom: 3px; }
-    .hint { opacity: .88; }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .brand-mark { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(135deg,#7c3aed,#06b6d4); font-size: 18px; }
+    .brand-title { font-weight: 750; letter-spacing: .01em; font-size: 15px; }
+    .brand-subtitle { color: #aab5d1; font-size: 11px; margin-top: 2px; }
+    .live { color: #86efac; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .live::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+    .instructions {
+      position: fixed; z-index: 20; top: 82px; left: 12px; right: 12px; max-width: 520px; margin: auto;
+      padding: 11px 14px; border-radius: 14px; background: rgba(9,15,34,.72);
+      border: 1px solid rgba(255,255,255,.1); color: #e5eaf8; text-align: center;
+      font-size: 13px; line-height: 1.4; backdrop-filter: blur(10px);
+    }
+    .instructions b { color: #fff; }
+    .bottom-panel {
+      position: fixed; z-index: 20; bottom: max(14px, env(safe-area-inset-bottom)); left: 12px; right: 12px;
+      max-width: 560px; margin: auto; padding: 15px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.14); background: rgba(9,15,34,.88);
+      backdrop-filter: blur(16px); box-shadow: 0 16px 45px rgba(0,0,0,.32); color: #fff;
+    }
+    .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 11px; }
+    .panel-heading strong { font-size: 14px; }
+    #selected-name { color: #a5b4fc; font-size: 12px; }
+    .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .choice {
+      min-height: 43px; border-radius: 12px; border: 1px solid rgba(255,255,255,.16);
+      color: #dbe4ff; background: rgba(255,255,255,.06); font: inherit; font-size: 12px; font-weight: 650;
+      cursor: pointer; transition: .18s ease;
+    }
+    .choice[aria-pressed="true"] { color: #fff; border-color: #818cf8; background: rgba(99,102,241,.28); box-shadow: inset 0 0 0 1px rgba(129,140,248,.25); }
+    .choice:focus-visible { outline: 2px solid #67e8f9; outline-offset: 3px; }
+    .footer-note { margin-top: 10px; color: #9ba8c7; font-size: 11px; text-align: center; }
+    .arjs-loader { display: none !important; }
+    @media (min-width: 700px) {
+      .instructions { top: 86px; }
+      .bottom-panel { bottom: 22px; }
+    }
   </style>
 </head>
+
 <body>
-  <div class="panel">
-    <strong>Mini AR Object Demo</strong>
-    <div class="hint">Allow camera access, then point your camera at the Hiro marker. A 3D object will appear on it.</div>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">✦</div>
+      <div>
+        <div class="brand-title">Mini AR Studio</div>
+        <div class="brand-subtitle">Interactive WebAR showcase</div>
+      </div>
+    </div>
+    <div class="live">CAMERA MODE</div>
+  </header>
+
+  <div class="instructions">
+    Point your camera at the <b>Hiro marker</b>. Choose an object below to change the 3D experience.
   </div>
+
+  <section class="bottom-panel" aria-label="3D object selector">
+    <div class="panel-heading">
+      <strong>Choose a 3D experience</strong>
+      <span id="selected-name">Orbit Cube</span>
+    </div>
+    <div class="choices">
+      <button class="choice" type="button" data-object="cube" aria-pressed="true">✦ Orbit Cube</button>
+      <button class="choice" type="button" data-object="planet" aria-pressed="false">◉ Mini Planet</button>
+      <button class="choice" type="button" data-object="crystal" aria-pressed="false">◆ Crystal</button>
+    </div>
+    <div class="footer-note">Allow camera access · Keep the marker flat, visible and well lit</div>
+  </section>
 
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true; antialias: true"
+    renderer="logarithmicDepthBuffer: true; antialias: true; colorManagement: true"
     arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono;">
-    <a-marker preset="hiro">
-      <a-entity
-        position="0 0.55 0"
-        rotation="0 45 0"
-        animation="property: rotation; to: 0 405 0; loop: true; dur: 5000; easing: linear">
-        <a-box position="0 0.35 0" depth="0.7" height="0.7" width="0.7"
-               color="#4F46E5" material="metalness: 0.25; roughness: 0.35">
-          <a-animation attribute="scale" direction="alternate" dur="1200"
-                       repeat="indefinite" to="1.12 1.12 1.12"></a-animation>
-        </a-box>
-        <a-cone position="0 0.95 0" radius-bottom="0.28" radius-top="0.02"
-                height="0.45" color="#F59E0B"></a-cone>
+
+    <a-marker preset="hiro" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2">
+
+      <!-- Object 1: rotating cube with a small accent cone -->
+      <a-entity id="object-cube" visible="true" position="0 0.15 0">
+        <a-entity position="0 0.72 0"
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 6500; easing: linear">
+          <a-box position="0 0.38 0" width="0.72" height="0.72" depth="0.72"
+            color="#6366F1" material="metalness: 0.28; roughness: 0.3"></a-box>
+          <a-cone position="0 1.02 0" radius-bottom="0.23" radius-top="0.02" height="0.42"
+            color="#FBBF24" material="metalness: 0.15; roughness: 0.35"></a-cone>
+        </a-entity>
+        <a-ring position="0 0.04 0" rotation="-90 0 0" radius-inner="0.66" radius-outer="0.72"
+          color="#22D3EE" material="shader: flat; opacity: 0.9"></a-ring>
       </a-entity>
-      <a-ring position="0 0.02 0" rotation="-90 0 0" radius-inner="0.62"
-              radius-outer="0.68" color="#22C55E"></a-ring>
+
+      <!-- Object 2: planet with orbit ring and moon -->
+      <a-entity id="object-planet" visible="false" position="0 0.2 0">
+        <a-sphere position="0 0.9 0" radius="0.48" color="#0EA5E9"
+          material="metalness: 0.18; roughness: 0.42"
+          animation="property: rotation; to: 0 360 0; dur: 9000; loop: true; easing: linear"></a-sphere>
+        <a-torus position="0 0.9 0" rotation="65 0 20" radius="0.72" radius-tubular="0.025"
+          color="#F9A8D4" material="metalness: 0.3; roughness: 0.3"></a-torus>
+        <a-sphere position="0.78 1.12 0" radius="0.13" color="#FDE68A"
+          animation="property: position; to: -0.78 1.12 0; dir: alternate; dur: 2200; loop: true; easing: easeInOutSine"></a-sphere>
+        <a-circle position="0 0.04 0" rotation="-90 0 0" radius="0.78" color="#38BDF8"
+          material="shader: flat; opacity: 0.16"></a-circle>
+      </a-entity>
+
+      <!-- Object 3: faceted crystal -->
+      <a-entity id="object-crystal" visible="false" position="0 0.2 0">
+        <a-octahedron position="0 0.88 0" radius="0.62" color="#A78BFA"
+          material="metalness: 0.35; roughness: 0.18; opacity: 0.94"
+          animation="property: rotation; to: 360 360 0; loop: true; dur: 7200; easing: linear"></a-octahedron>
+        <a-cylinder position="0 0.12 0" radius="0.43" height="0.08" color="#C4B5FD"
+          material="metalness: 0.25; roughness: 0.3"></a-cylinder>
+        <a-ring position="0 0.04 0" rotation="-90 0 0" radius-inner="0.57" radius-outer="0.63"
+          color="#C4B5FD" material="shader: flat"></a-ring>
+      </a-entity>
+
     </a-marker>
     <a-entity camera></a-entity>
   </a-scene>
+
+  <script>
+    // Switch the visible 3D model when a selector button is pressed.
+    const objectNames = {
+      cube: "Orbit Cube",
+      planet: "Mini Planet",
+      crystal: "Crystal"
+    };
+
+    const buttons = document.querySelectorAll(".choice");
+    const models = {
+      cube: document.querySelector("#object-cube"),
+      planet: document.querySelector("#object-planet"),
+      crystal: document.querySelector("#object-crystal")
+    };
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const selected = button.dataset.object;
+
+        Object.entries(models).forEach(([name, model]) => {
+          model.setAttribute("visible", name === selected);
+        });
+
+        buttons.forEach((item) => {
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+
+        document.querySelector("#selected-name").textContent = objectNames[selected];
+      });
+    });
+  </script>
 </body>
 </html>
